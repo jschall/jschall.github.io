@@ -248,7 +248,7 @@ function play_tone(tone_str) {
 <textarea id="tonetextarea" cols=80 rows=10></textarea>
 <script>document.getElementById('tonetextarea').value = decodeURI(window.location.hash.slice(1))||'MFT240L8 O4aO5dc O4aO5dc O4aO5dc L16dcdcdcdc'</script>
 <br/>
-<button onclick="window.location.hash=encodeURI(document.getElementById('tonetextarea').value);play_tone(decodeURI(window.location.hash.slice(1)));">Go!</button><br/><br/>
+<button onclick="window.location.hash=encodeURI(document.getElementById('tonetextarea').value);play_tone(decodeURI(window.location.hash.slice(1)));">Play tone!</button><br/><br/>
 <pre>
   Tunes follow the syntax of the Microsoft GWBasic/QBasic PLAY
   statement, with some exceptions and extensions.
