@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tesla Model 3 Wireless Charger Designer</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#f3f4f6;--sidebar-bg:#fff;--border:#e5e7eb;--text:#1f2937;--text-light:#6b7280;--accent:#2563eb;--accent-hover:#1d4ed8;--radius:8px}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);height:100vh;overflow:hidden}
+.app{display:flex;height:100vh}
+.sidebar{width:340px;min-width:340px;background:var(--sidebar-bg);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.sidebar-header{padding:16px 20px;border-bottom:1px solid var(--border);flex-shrink:0}
+.sidebar-header h1{font-size:16px;font-weight:700;color:var(--text)}
+.sidebar-header p{font-size:12px;color:var(--text-light);margin-top:2px}
+.sidebar-scroll{flex:1;overflow-y:auto;padding:12px 16px 20px}
+.param-group{margin-bottom:8px;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.param-group-header{padding:10px 14px;font-size:13px;font-weight:600;cursor:pointer;background:#fafafa;display:flex;align-items:center;justify-content:space-between;user-select:none}
+.param-group-header:hover{background:#f0f0f0}
+.param-group-header .arrow{font-size:10px;transition:transform .2s;color:var(--text-light)}
+.param-group.collapsed .arrow{transform:rotate(-90deg)}
+.param-group.collapsed .param-group-body{display:none}
+.param-group-body{padding:8px 14px 12px}
+.param-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px}
+.param-row label{font-size:12px;color:var(--text);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-right:8px}
+.param-row input[type=number]{width:75px;padding:4px 6px;border:1px solid var(--border);border-radius:4px;font-size:12px;text-align:right;font-family:inherit}
+.param-row input[type=number]:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 2px rgba(37,99,235,.15)}
+.param-row .unit{font-size:11px;color:var(--text-light);margin-left:4px;width:24px}
+.main{flex:1;display:flex;flex-direction:column;min-width:0}
+.toolbar{display:flex;align-items:center;padding:8px 16px;background:var(--sidebar-bg);border-bottom:1px solid var(--border);gap:4px;flex-shrink:0;flex-wrap:wrap}
+.tab{padding:6px 14px;border:none;background:none;font-size:13px;cursor:pointer;border-radius:6px;color:var(--text-light);font-family:inherit;transition:all .15s}
+.tab:hover{background:#f0f0f0;color:var(--text)}
+.tab.active{background:var(--accent);color:#fff;font-weight:500}
+.toolbar-spacer{flex:1}
+.btn{padding:6px 14px;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-family:inherit;font-weight:500;transition:all .15s}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover{background:var(--accent-hover)}
+.btn-secondary{background:#e5e7eb;color:var(--text)}
+.btn-secondary:hover{background:#d1d5db}
+.btn-group{display:flex;gap:4px}
+.viewport{flex:1;display:flex;align-items:center;justify-content:center;padding:20px;overflow:hidden;background:#fafafa}
+.viewport svg{max-width:100%;max-height:100%;filter:drop-shadow(0 2px 8px rgba(0,0,0,.08))}
+.status-bar{padding:6px 16px;background:var(--sidebar-bg);border-top:1px solid var(--border);font-size:11px;color:var(--text-light);display:flex;gap:16px;flex-shrink:0}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <h1>Charger Designer</h1>
+      <p>Tesla Model 3 Wireless Charger</p>
+    </div>
+    <div class="sidebar-scroll" id="params-container"></div>
+  </div>
+  <div class="main">
+    <div class="toolbar" id="toolbar"></div>
+    <div class="viewport" id="viewport"></div>
+    <div class="status-bar" id="status-bar"></div>
+  </div>
+</div>
+<script>
+// ===================== Parameter Definitions =====================
+const PARAM_DEFS = [
+  {group:'Base Shape',id:'trapTopWidth',label:'Top Width (narrow)',val:160,min:50,max:400,step:1},
+  {group:'Base Shape',id:'trapBottomWidth',label:'Bottom Width (wide)',val:200,min:50,max:400,step:1},
+  {group:'Base Shape',id:'trapHeight',label:'Height (depth)',val:180,min:50,max:400,step:1},
+  {group:'Base Shape',id:'trapCornerR',label:'Corner Radius',val:8,min:0,max:30,step:.5},
+
+  {group:'Phone 1 (Left)',id:'p1W',label:'Width',val:71.6,min:30,max:120,step:.1},
+  {group:'Phone 1 (Left)',id:'p1H',label:'Height',val:147.6,min:60,max:220,step:.1},
+  {group:'Phone 1 (Left)',id:'p1R',label:'Corner Radius',val:11,min:0,max:30,step:.5},
+  {group:'Phone 1 (Left)',id:'p1CamW',label:'Camera Bump W',val:30,min:5,max:60,step:.5},
+  {group:'Phone 1 (Left)',id:'p1CamH',label:'Camera Bump H',val:30,min:5,max:60,step:.5},
+  {group:'Phone 1 (Left)',id:'p1CamR',label:'Camera Bump R',val:5,min:0,max:20,step:.5},
+  {group:'Phone 1 (Left)',id:'p1CamOX',label:'Camera Offset X',val:-15,min:-60,max:60,step:.5},
+  {group:'Phone 1 (Left)',id:'p1CamOY',label:'Camera Offset Y',val:-50,min:-100,max:100,step:.5},
+
+  {group:'Phone 2 (Right)',id:'p2W',label:'Width',val:76.7,min:30,max:120,step:.1},
+  {group:'Phone 2 (Right)',id:'p2H',label:'Height',val:159.9,min:60,max:220,step:.1},
+  {group:'Phone 2 (Right)',id:'p2R',label:'Corner Radius',val:11,min:0,max:30,step:.5},
+  {group:'Phone 2 (Right)',id:'p2CamW',label:'Camera Bump W',val:36,min:5,max:60,step:.5},
+  {group:'Phone 2 (Right)',id:'p2CamH',label:'Camera Bump H',val:36,min:5,max:60,step:.5},
+  {group:'Phone 2 (Right)',id:'p2CamR',label:'Camera Bump R',val:5,min:0,max:20,step:.5},
+  {group:'Phone 2 (Right)',id:'p2CamOX',label:'Camera Offset X',val:-15,min:-60,max:60,step:.5},
+  {group:'Phone 2 (Right)',id:'p2CamOY',label:'Camera Offset Y',val:-52,min:-100,max:100,step:.5},
+
+  {group:'Charging Pucks',id:'puckDia',label:'Puck Diameter',val:56,min:20,max:80,step:.5},
+  {group:'Charging Pucks',id:'puckOY',label:'Puck Y Offset',val:0,min:-60,max:60,step:1},
+
+  {group:'Wire Routing',id:'chanW',label:'Channel Width',val:8,min:3,max:20,step:.5},
+  {group:'Wire Routing',id:'dropDist',label:'Drop Distance',val:40,min:5,max:100,step:1},
+  {group:'Wire Routing',id:'exitW',label:'Exit Hole Width',val:18,min:5,max:40,step:1},
+  {group:'Wire Routing',id:'exitH',label:'Exit Hole Height',val:10,min:5,max:30,step:1},
+  {group:'Wire Routing',id:'exitR',label:'Exit Hole Radius',val:3,min:0,max:15,step:.5},
+  {group:'Wire Routing',id:'exitY',label:'Exit Y Position',val:10,min:-80,max:80,step:1},
+  {group:'Wire Routing',id:'shortChanLen',label:'Short Channel Len',val:15,min:3,max:50,step:1},
+
+  {group:'Layout',id:'phoneSpacing',label:'Phone Spacing',val:8,min:0,max:40,step:.5},
+  {group:'Layout',id:'phonesOY',label:'Phones Y Offset',val:0,min:-60,max:60,step:1},
+  {group:'Layout',id:'clearance',label:'Cutout Clearance',val:0.5,min:0,max:3,step:.1},
+];
+
+// ===================== State =====================
+let P = {}; // current params
+let activeTab = 'assembled';
+PARAM_DEFS.forEach(d => P[d.id] = d.val);
+
+// ===================== Geometry Utilities =====================
+const f = (v, d=3) => +v.toFixed(d);
+
+function roundedRectPath(cx, cy, w, h, r) {
+  r = Math.min(r, w/2, h/2);
+  const x=cx-w/2, y=cy-h/2, xr=x+w, yb=y+h;
+  return `M${f(x+r)} ${f(y)} L${f(xr-r)} ${f(y)} A${f(r)} ${f(r)} 0 0 1 ${f(xr)} ${f(y+r)} `+
+    `L${f(xr)} ${f(yb-r)} A${f(r)} ${f(r)} 0 0 1 ${f(xr-r)} ${f(yb)} `+
+    `L${f(x+r)} ${f(yb)} A${f(r)} ${f(r)} 0 0 1 ${f(x)} ${f(yb-r)} `+
+    `L${f(x)} ${f(y+r)} A${f(r)} ${f(r)} 0 0 1 ${f(x+r)} ${f(y)} Z`;
+}
+
+function circlePath(cx, cy, r) {
+  return `M${f(cx-r)} ${f(cy)} A${f(r)} ${f(r)} 0 0 1 ${f(cx+r)} ${f(cy)} A${f(r)} ${f(r)} 0 0 1 ${f(cx-r)} ${f(cy)} Z`;
+}
+
+function trapezoidPath(topW, botW, h, r) {
+  // Centered at origin. Top = narrow (neg Y), Bottom = wide (pos Y)
+  const hh = h/2;
+  const pts = [
+    {x:-topW/2, y:-hh},  // top-left
+    {x: topW/2, y:-hh},  // top-right
+    {x: botW/2, y: hh},  // bottom-right
+    {x:-botW/2, y: hh},  // bottom-left
+  ];
+  return roundedPolygonPath(pts, r);
+}
+
+function roundedPolygonPath(pts, r) {
+  const n = pts.length;
+  if (r <= 0) {
+    let d = `M${f(pts[0].x)} ${f(pts[0].y)}`;
+    for (let i=1;i<n;i++) d += ` L${f(pts[i].x)} ${f(pts[i].y)}`;
+    return d + ' Z';
+  }
+  let d = '';
+  for (let i=0;i<n;i++) {
+    const prev = pts[(i-1+n)%n], curr = pts[i], next = pts[(i+1)%n];
+    const toPrev = norm(sub(prev, curr));
+    const toNext = norm(sub(next, curr));
+    const edgePrev = dist(prev, curr);
+    const edgeNext = dist(curr, next);
+    const maxR = Math.min(r, edgePrev/2, edgeNext/2);
+    const s = {x:curr.x+toPrev.x*maxR, y:curr.y+toPrev.y*maxR};
+    const e = {x:curr.x+toNext.x*maxR, y:curr.y+toNext.y*maxR};
+    if (i===0) d = `M${f(s.x)} ${f(s.y)}`;
+    else d += ` L${f(s.x)} ${f(s.y)}`;
+    d += ` Q${f(curr.x)} ${f(curr.y)} ${f(e.x)} ${f(e.y)}`;
+  }
+  return d + ' Z';
+}
+
+function sub(a,b){return{x:a.x-b.x,y:a.y-b.y}}
+function dist(a,b){return Math.sqrt((a.x-b.x)**2+(a.y-b.y)**2)}
+function norm(v){const l=Math.sqrt(v.x*v.x+v.y*v.y)||1;return{x:v.x/l,y:v.y/l}}
+
+function sampleCubicBezier(p0,p1,p2,p3,n) {
+  const pts=[];
+  for(let i=0;i<=n;i++){
+    const t=i/n, mt=1-t;
+    pts.push({
+      x:mt*mt*mt*p0.x+3*mt*mt*t*p1.x+3*mt*t*t*p2.x+t*t*t*p3.x,
+      y:mt*mt*mt*p0.y+3*mt*mt*t*p1.y+3*mt*t*t*p2.y+t*t*t*p3.y
+    });
+  }
+  return pts;
+}
+
+function slotPath(centerline, w) {
+  const hw=w/2, n=centerline.length;
+  if(n<2) return '';
+  const normals=[];
+  for(let i=0;i<n;i++){
+    let dx,dy;
+    if(i===0){dx=centerline[1].x-centerline[0].x;dy=centerline[1].y-centerline[0].y}
+    else if(i===n-1){dx=centerline[n-1].x-centerline[n-2].x;dy=centerline[n-1].y-centerline[n-2].y}
+    else{dx=centerline[i+1].x-centerline[i-1].x;dy=centerline[i+1].y-centerline[i-1].y}
+    const l=Math.sqrt(dx*dx+dy*dy)||1;
+    normals.push({x:-dy/l,y:dx/l});
+  }
+  const left=centerline.map((p,i)=>({x:p.x+normals[i].x*hw,y:p.y+normals[i].y*hw}));
+  const right=centerline.map((p,i)=>({x:p.x-normals[i].x*hw,y:p.y-normals[i].y*hw}));
+
+  let d=`M${f(left[0].x)} ${f(left[0].y)}`;
+  for(let i=1;i<n;i++) d+=` L${f(left[i].x)} ${f(left[i].y)}`;
+  d+=` A${f(hw)} ${f(hw)} 0 0 1 ${f(right[n-1].x)} ${f(right[n-1].y)}`;
+  for(let i=n-2;i>=0;i--) d+=` L${f(right[i].x)} ${f(right[i].y)}`;
+  d+=` A${f(hw)} ${f(hw)} 0 0 0 ${f(left[0].x)} ${f(left[0].y)} Z`;
+  return d;
+}
+
+// Puck circle + short slot extending downward
+function puckSlotPath(cx, cy, puckR, slotW, slotLen) {
+  const hw = slotW/2;
+  if(hw >= puckR) {
+    // Slot wider than puck - just use rounded rect
+    const totalH = puckR*2 + slotLen;
+    return roundedRectPath(cx, cy + slotLen/2, Math.max(slotW, puckR*2), totalH, puckR);
+  }
+  const intersectY = cy + Math.sqrt(puckR*puckR - hw*hw);
+  const slotBottom = cy + puckR + slotLen;
+  const slotCapR = hw;
+
+  let d = `M${f(cx+hw)} ${f(intersectY)}`;
+  d += ` A${f(puckR)} ${f(puckR)} 0 1 1 ${f(cx-hw)} ${f(intersectY)}`;
+  d += ` L${f(cx-hw)} ${f(slotBottom-slotCapR)}`;
+  d += ` A${f(slotCapR)} ${f(slotCapR)} 0 0 0 ${f(cx+hw)} ${f(slotBottom-slotCapR)}`;
+  d += ` L${f(cx+hw)} ${f(intersectY)} Z`;
+  return d;
+}
+
+// ===================== Layout Computation =====================
+function computeLayout() {
+  const p = P;
+  const puckR = p.puckDia/2;
+  const totalPW = p.p1W + p.phoneSpacing + p.p2W;
+  const phone1CX = -totalPW/2 + p.p1W/2;
+  const phone2CX =  totalPW/2 - p.p2W/2;
+  const phone1CY = p.phonesOY;
+  const phone2CY = p.phonesOY;
+
+  const puck1CX = phone1CX;
+  const puck1CY = phone1CY + p.puckOY;
+  const puck2CX = phone2CX;
+  const puck2CY = phone2CY + p.puckOY;
+
+  const cam1CX = phone1CX + p.p1CamOX;
+  const cam1CY = phone1CY + p.p1CamOY;
+  const cam2CX = phone2CX + p.p2CamOX;
+  const cam2CY = phone2CY + p.p2CamOY;
+
+  return {
+    phone1CX,phone1CY,phone2CX,phone2CY,
+    puck1CX,puck1CY,puck2CX,puck2CY,puckR,
+    cam1CX,cam1CY,cam2CX,cam2CY,
+    wireExitCX:0,wireExitCY:p.exitY,
+  };
+}
+
+// ===================== Layer Path Generators =====================
+function baseLayerPaths() {
+  const p=P, L=computeLayout();
+  const outline = trapezoidPath(p.trapTopWidth, p.trapBottomWidth, p.trapHeight, p.trapCornerR);
+
+  // Wire channel bezier for left puck
+  const p0L={x:L.puck1CX, y:L.puck1CY+L.puckR};
+  const p1L={x:L.puck1CX, y:L.puck1CY+L.puckR+p.dropDist};
+  const p2L={x:L.wireExitCX, y:L.puck1CY+L.puckR+p.dropDist};
+  const p3L={x:L.wireExitCX, y:L.wireExitCY};
+  const chanLeft = slotPath(sampleCubicBezier(p0L,p1L,p2L,p3L,50), p.chanW);
+
+  // Wire channel bezier for right puck
+  const p0R={x:L.puck2CX, y:L.puck2CY+L.puckR};
+  const p1R={x:L.puck2CX, y:L.puck2CY+L.puckR+p.dropDist};
+  const p2R={x:L.wireExitCX, y:L.puck2CY+L.puckR+p.dropDist};
+  const p3R={x:L.wireExitCX, y:L.wireExitCY};
+  const chanRight = slotPath(sampleCubicBezier(p0R,p1R,p2R,p3R,50), p.chanW);
+
+  // Wire exit hole
+  const exitHole = roundedRectPath(L.wireExitCX, L.wireExitCY, p.exitW, p.exitH, p.exitR);
+
+  return {outline, cutouts:[chanLeft, chanRight, exitHole]};
+}
+
+function middleLayerPaths() {
+  const p=P, L=computeLayout(), cl=p.clearance;
+  const outline = trapezoidPath(p.trapTopWidth, p.trapBottomWidth, p.trapHeight, p.trapCornerR);
+
+  // Puck circles with short channel slots
+  const puck1 = puckSlotPath(L.puck1CX, L.puck1CY, L.puckR+cl, p.chanW, p.shortChanLen);
+  const puck2 = puckSlotPath(L.puck2CX, L.puck2CY, L.puckR+cl, p.chanW, p.shortChanLen);
+
+  // Camera bump cutouts
+  const cam1 = roundedRectPath(L.cam1CX, L.cam1CY, p.p1CamW+cl*2, p.p1CamH+cl*2, p.p1CamR);
+  const cam2 = roundedRectPath(L.cam2CX, L.cam2CY, p.p2CamW+cl*2, p.p2CamH+cl*2, p.p2CamR);
+
+  return {outline, cutouts:[puck1, puck2, cam1, cam2]};
+}
+
+function topLayerPaths() {
+  const p=P, L=computeLayout(), cl=p.clearance;
+  const outline = trapezoidPath(p.trapTopWidth, p.trapBottomWidth, p.trapHeight, p.trapCornerR);
+
+  const phone1 = roundedRectPath(L.phone1CX, L.phone1CY, p.p1W+cl*2, p.p1H+cl*2, p.p1R);
+  const phone2 = roundedRectPath(L.phone2CX, L.phone2CY, p.p2W+cl*2, p.p2H+cl*2, p.p2R);
+
+  return {outline, cutouts:[phone1, phone2]};
+}
+
+// ===================== SVG Rendering =====================
+function viewBox() {
+  const pad=15;
+  const w=Math.max(P.trapTopWidth, P.trapBottomWidth);
+  const h=P.trapHeight;
+  return `${f(-w/2-pad)} ${f(-h/2-pad)} ${f(w+pad*2)} ${f(h+pad*2)}`;
+}
+
+function renderAssembled() {
+  const base=baseLayerPaths(), mid=middleLayerPaths(), top=topLayerPaths(), L=computeLayout();
+
+  // Build compound paths (outline + cutouts for evenodd fill)
+  const baseFill = base.outline;
+  const baseCutD = base.cutouts.join(' ');
+  const midCompound = mid.outline + ' ' + mid.cutouts.join(' ');
+  const topCompound = top.outline + ' ' + top.cutouts.join(' ');
+
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBox()}">`;
+  svg += `<defs>
+    <filter id="sh1" x="-5%" y="-5%" width="110%" height="110%"><feDropShadow dx="0" dy="1" stdDeviation="1.5" flood-opacity="0.15"/></filter>
+  </defs>`;
+
+  // Background
+  svg += `<rect x="${f(-300)}" y="${f(-300)}" width="600" height="600" fill="#e8e8e8"/>`;
+
+  // Layer 1 (base) - solid fill
+  svg += `<g filter="url(#sh1)">`;
+  svg += `<path d="${baseFill}" fill="#DEB887" stroke="#8B6914" stroke-width="0.4"/>`;
+  // Wire channels cut through base - show as dark
+  base.cutouts.forEach(c => {
+    svg += `<path d="${c}" fill="#777" stroke="#555" stroke-width="0.2"/>`;
+  });
+  svg += `</g>`;
+
+  // Layer 2 (middle) - compound path with holes
+  svg += `<g filter="url(#sh1)">`;
+  svg += `<path d="${midCompound}" fill="#C49A6C" fill-rule="evenodd" stroke="#8B6914" stroke-width="0.4"/>`;
+  svg += `</g>`;
+
+  // Charging pucks (visible through top layer phone cutouts)
+  svg += `<circle cx="${f(L.puck1CX)}" cy="${f(L.puck1CY)}" r="${f(L.puckR)}" fill="#999" stroke="#777" stroke-width="0.5"/>`;
+  svg += `<circle cx="${f(L.puck1CX)}" cy="${f(L.puck1CY)}" r="${f(L.puckR*0.6)}" fill="none" stroke="#aaa" stroke-width="0.3"/>`;
+  svg += `<circle cx="${f(L.puck2CX)}" cy="${f(L.puck2CY)}" r="${f(L.puckR)}" fill="#999" stroke="#777" stroke-width="0.5"/>`;
+  svg += `<circle cx="${f(L.puck2CX)}" cy="${f(L.puck2CY)}" r="${f(L.puckR*0.6)}" fill="none" stroke="#aaa" stroke-width="0.3"/>`;
+
+  // Layer 3 (top) - compound path with holes
+  svg += `<g filter="url(#sh1)">`;
+  svg += `<path d="${topCompound}" fill="#A07850" fill-rule="evenodd" stroke="#8B6914" stroke-width="0.4"/>`;
+  svg += `</g>`;
+
+  // Phone outlines (ghost lines showing where phones sit)
+  svg += `<path d="${roundedRectPath(L.phone1CX,L.phone1CY,P.p1W,P.p1H,P.p1R)}" fill="none" stroke="#fff" stroke-width="0.4" stroke-dasharray="3,2" opacity="0.6"/>`;
+  svg += `<path d="${roundedRectPath(L.phone2CX,L.phone2CY,P.p2W,P.p2H,P.p2R)}" fill="none" stroke="#fff" stroke-width="0.4" stroke-dasharray="3,2" opacity="0.6"/>`;
+
+  // Labels
+  const fs = Math.max(P.trapHeight * 0.03, 4);
+  svg += `<text x="${f(L.phone1CX)}" y="${f(L.phone1CY)}" text-anchor="middle" dominant-baseline="middle" font-size="${f(fs)}" fill="#fff" opacity="0.7" font-family="sans-serif">Phone 1</text>`;
+  svg += `<text x="${f(L.phone2CX)}" y="${f(L.phone2CY)}" text-anchor="middle" dominant-baseline="middle" font-size="${f(fs)}" fill="#fff" opacity="0.7" font-family="sans-serif">Phone 2</text>`;
+
+  svg += `</svg>`;
+  return svg;
+}
+
+function renderLayer(layerPaths, fillColor, label, refAnnotations) {
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${viewBox()}">`;
+  svg += `<rect x="-300" y="-300" width="600" height="600" fill="#f5f5f5"/>`;
+
+  // Grid
+  const gw=Math.max(P.trapTopWidth,P.trapBottomWidth)/2+10, gh=P.trapHeight/2+10;
+  for(let x=Math.ceil(-gw/10)*10; x<=gw; x+=10) {
+    svg += `<line x1="${x}" y1="${f(-gh)}" x2="${x}" y2="${f(gh)}" stroke="#ddd" stroke-width="${x%50===0?0.3:0.15}"/>`;
+  }
+  for(let y=Math.ceil(-gh/10)*10; y<=gh; y+=10) {
+    svg += `<line x1="${f(-gw)}" y1="${y}" x2="${f(gw)}" y2="${y}" stroke="#ddd" stroke-width="${y%50===0?0.3:0.15}"/>`;
+  }
+
+  // Layer fill with cutouts
+  const compound = layerPaths.outline + ' ' + layerPaths.cutouts.join(' ');
+  svg += `<path d="${compound}" fill="${fillColor}" fill-rule="evenodd" stroke="#333" stroke-width="0.4"/>`;
+
+  // Cutout outlines (for clarity)
+  layerPaths.cutouts.forEach(c => {
+    svg += `<path d="${c}" fill="none" stroke="#c00" stroke-width="0.3" stroke-dasharray="2,1"/>`;
+  });
+
+  // Reference annotations from other layers
+  if(refAnnotations) {
+    refAnnotations.forEach(a => {
+      svg += `<path d="${a.path}" fill="none" stroke="${a.color||'#09f'}" stroke-width="0.3" stroke-dasharray="${a.dash||'3,2'}" opacity="0.5"/>`;
+      if(a.label) {
+        svg += `<text x="${f(a.lx||0)}" y="${f(a.ly||0)}" text-anchor="middle" font-size="3.5" fill="${a.color||'#09f'}" opacity="0.6" font-family="sans-serif">${a.label}</text>`;
+      }
+    });
+  }
+
+  // Dimension annotations
+  const L = computeLayout();
+  const dfs = 3;
+  // Width dimension at bottom
+  svg += `<line x1="${f(-P.trapBottomWidth/2)}" y1="${f(P.trapHeight/2+6)}" x2="${f(P.trapBottomWidth/2)}" y2="${f(P.trapHeight/2+6)}" stroke="#999" stroke-width="0.2" marker-start="url(#arr)" marker-end="url(#arr)"/>`;
+  svg += `<text x="0" y="${f(P.trapHeight/2+9.5)}" text-anchor="middle" font-size="${dfs}" fill="#999" font-family="sans-serif">${P.trapBottomWidth}mm</text>`;
+  // Height dimension at right
+  const rx = Math.max(P.trapTopWidth,P.trapBottomWidth)/2+8;
+  svg += `<line x1="${f(rx)}" y1="${f(-P.trapHeight/2)}" x2="${f(rx)}" y2="${f(P.trapHeight/2)}" stroke="#999" stroke-width="0.2"/>`;
+  svg += `<text x="${f(rx+2)}" y="0" text-anchor="start" font-size="${dfs}" fill="#999" font-family="sans-serif" transform="rotate(90,${f(rx+2)},0)">${P.trapHeight}mm</text>`;
+
+  // Label
+  const fs = Math.max(P.trapHeight * 0.035, 5);
+  svg += `<text x="0" y="${f(-P.trapHeight/2-6)}" text-anchor="middle" font-size="${f(fs)}" fill="#555" font-weight="600" font-family="sans-serif">${label}</text>`;
+
+  svg += `</svg>`;
+  return svg;
+}
+
+function renderExploded() {
+  const base=baseLayerPaths(), mid=middleLayerPaths(), top=topLayerPaths(), L=computeLayout();
+  const sep = P.trapHeight * 0.22;
+  const sy = 0.5; // Y compression for pseudo-3D
+
+  const pad=30;
+  const w=Math.max(P.trapTopWidth,P.trapBottomWidth);
+  const h=P.trapHeight;
+  const totalH = h*sy + sep*3 + pad*2;
+  const totalW = w + pad*2 + 60;
+  const vb = `${f(-totalW/2)} ${f(-totalH/2-10)} ${f(totalW)} ${f(totalH+20)}`;
+
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vb}">`;
+  svg += `<defs>`;
+  svg += `<filter id="sh3" x="-8%" y="-8%" width="116%" height="116%"><feDropShadow dx="1" dy="2" stdDeviation="3" flood-opacity="0.18"/></filter>`;
+  svg += `</defs>`;
+  svg += `<rect x="${f(-totalW)}" y="${f(-totalH)}" width="${f(totalW*2)}" height="${f(totalH*2)}" fill="#f0f0f0"/>`;
+
+  const layers = [
+    {paths:base, fill:'#DEB887', stroke:'#B8860B', yOff: sep*1.2, label:'Layer 1: Base Plate'},
+    {paths:mid,  fill:'#C49A6C', stroke:'#9A7B4F', yOff: 0,       label:'Layer 2: Middle'},
+    {paths:top,  fill:'#A07850', stroke:'#7A5A3A', yOff:-sep*1.2,  label:'Layer 3: Top'},
+  ];
+
+  layers.forEach(layer => {
+    const ty = layer.yOff;
+    svg += `<g transform="translate(0,${f(ty)}) scale(1,${sy})" filter="url(#sh3)">`;
+    const compound = layer.paths.outline + ' ' + layer.paths.cutouts.join(' ');
+    svg += `<path d="${compound}" fill="${layer.fill}" fill-rule="evenodd" stroke="${layer.stroke}" stroke-width="0.5"/>`;
+    // Show cutout fills in lighter color for visibility
+    layer.paths.cutouts.forEach(c => {
+      svg += `<path d="${c}" fill="#e8e8e8" opacity="0.4" stroke="none"/>`;
+    });
+    svg += `</g>`;
+    // Connecting lines (dashed vertical guides between layers)
+    if(layer.yOff > -sep) {
+      const guidePts = [{x:-w*0.4,y:ty+h*sy*0.3}, {x:w*0.4,y:ty+h*sy*0.3}];
+    }
+    // Label
+    const lx = w/2+12;
+    svg += `<text x="${f(lx)}" y="${f(ty)}" font-size="4.5" fill="#666" font-family="sans-serif" dominant-baseline="middle" font-weight="500">${layer.label}</text>`;
+    // Thin connecting bracket
+    svg += `<line x1="${f(lx-2)}" y1="${f(ty)}" x2="${f(lx-0.5)}" y2="${f(ty)}" stroke="#bbb" stroke-width="0.3"/>`;
+  });
+
+  // Title
+  svg += `<text x="0" y="${f(-totalH/2+4)}" text-anchor="middle" font-size="5.5" fill="#444" font-family="sans-serif" font-weight="600">Exploded View</text>`;
+
+  svg += `</svg>`;
+  return svg;
+}
+
+// ===================== SVG Export =====================
+function generateExportSVG(layerPaths, layerName) {
+  const w = Math.max(P.trapTopWidth, P.trapBottomWidth) + 10;
+  const h = P.trapHeight + 10;
+  let svg = `<?xml version="1.0" encoding="UTF-8"?>\n`;
+  svg += `<svg xmlns="http://www.w3.org/2000/svg" width="${f(w)}mm" height="${f(h)}mm" viewBox="${f(-w/2)} ${f(-h/2)} ${f(w)} ${f(h)}">\n`;
+  svg += `  <!-- ${layerName} - Tesla Model 3 Wireless Charger -->\n`;
+  svg += `  <!-- Units: mm. Material: 1/8" (3.175mm) plywood -->\n`;
+  svg += `  <g fill="none" stroke="#000" stroke-width="0.1">\n`;
+  svg += `    <!-- Outline -->\n`;
+  svg += `    <path d="${layerPaths.outline}"/>\n`;
+  layerPaths.cutouts.forEach((c, i) => {
+    svg += `    <!-- Cutout ${i+1} -->\n`;
+    svg += `    <path d="${c}"/>\n`;
+  });
+  svg += `  </g>\n`;
+  svg += `</svg>`;
+  return svg;
+}
+
+function downloadFile(content, filename, type='image/svg+xml') {
+  const blob = new Blob([content], {type});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function downloadLayer(n) {
+  const fns = [baseLayerPaths, middleLayerPaths, topLayerPaths];
+  const names = ['base-plate', 'middle-layer', 'top-layer'];
+  const labels = ['Base Plate (Layer 1)', 'Middle Layer (Layer 2)', 'Top Layer (Layer 3)'];
+  const svg = generateExportSVG(fns[n](), labels[n]);
+  downloadFile(svg, `charger-${names[n]}.svg`);
+}
+
+function downloadAll() {
+  downloadLayer(0);
+  setTimeout(()=>downloadLayer(1), 200);
+  setTimeout(()=>downloadLayer(2), 400);
+}
+
+// ===================== UI Construction =====================
+function buildUI() {
+  // Parameters
+  const container = document.getElementById('params-container');
+  const groups = {};
+  PARAM_DEFS.forEach(d => {
+    if(!groups[d.group]) groups[d.group] = [];
+    groups[d.group].push(d);
+  });
+
+  let html = '';
+  Object.entries(groups).forEach(([name, defs]) => {
+    html += `<div class="param-group" data-group="${name}">`;
+    html += `<div class="param-group-header" onclick="toggleGroup(this)">${name}<span class="arrow">&#9660;</span></div>`;
+    html += `<div class="param-group-body">`;
+    defs.forEach(d => {
+      html += `<div class="param-row">`;
+      html += `<label title="${d.id}">${d.label}</label>`;
+      html += `<input type="number" id="inp-${d.id}" value="${d.val}" min="${d.min}" max="${d.max}" step="${d.step}" onchange="onParam('${d.id}',this.value)" oninput="onParam('${d.id}',this.value)">`;
+      html += `<span class="unit">mm</span>`;
+      html += `</div>`;
+    });
+    html += `</div></div>`;
+  });
+  html += `<div style="margin-top:12px"><button class="btn btn-secondary" style="width:100%" onclick="resetParams()">Reset to Defaults</button></div>`;
+  container.innerHTML = html;
+
+  // Tabs + actions
+  const toolbar = document.getElementById('toolbar');
+  const tabs = [
+    {id:'assembled', label:'Assembled'},
+    {id:'exploded', label:'Exploded 3D'},
+    {id:'layer1', label:'Base Plate'},
+    {id:'layer2', label:'Middle Layer'},
+    {id:'layer3', label:'Top Layer'},
+  ];
+  let tbHtml = tabs.map(t =>
+    `<button class="tab${t.id===activeTab?' active':''}" data-tab="${t.id}" onclick="setTab('${t.id}')">${t.label}</button>`
+  ).join('');
+  tbHtml += `<span class="toolbar-spacer"></span>`;
+  tbHtml += `<div class="btn-group">`;
+  tbHtml += `<button class="btn btn-secondary" onclick="downloadLayer(0)" title="Download Base Plate SVG">&#11015; Base</button>`;
+  tbHtml += `<button class="btn btn-secondary" onclick="downloadLayer(1)" title="Download Middle Layer SVG">&#11015; Middle</button>`;
+  tbHtml += `<button class="btn btn-secondary" onclick="downloadLayer(2)" title="Download Top Layer SVG">&#11015; Top</button>`;
+  tbHtml += `<button class="btn btn-primary" onclick="downloadAll()">&#11015; All SVGs</button>`;
+  tbHtml += `</div>`;
+  toolbar.innerHTML = tbHtml;
+}
+
+function toggleGroup(el) {
+  el.parentElement.classList.toggle('collapsed');
+}
+
+function onParam(id, val) {
+  const v = parseFloat(val);
+  if(!isNaN(v)) { P[id] = v; render(); }
+}
+
+function setTab(id) {
+  activeTab = id;
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab===id));
+  render();
+}
+
+function resetParams() {
+  PARAM_DEFS.forEach(d => {
+    P[d.id] = d.val;
+    const inp = document.getElementById('inp-'+d.id);
+    if(inp) inp.value = d.val;
+  });
+  render();
+}
+
+function getLayerRefs(layerName) {
+  const L = computeLayout(), cl = P.clearance;
+  const refs = [];
+  if(layerName === 'base') {
+    // Show phone outlines and puck circles for reference
+    refs.push({path:roundedRectPath(L.phone1CX,L.phone1CY,P.p1W,P.p1H,P.p1R), color:'#09f', dash:'3,2', label:'Phone 1', lx:L.phone1CX, ly:L.phone1CY});
+    refs.push({path:roundedRectPath(L.phone2CX,L.phone2CY,P.p2W,P.p2H,P.p2R), color:'#09f', dash:'3,2', label:'Phone 2', lx:L.phone2CX, ly:L.phone2CY});
+    refs.push({path:circlePath(L.puck1CX,L.puck1CY,L.puckR), color:'#e90', dash:'2,2'});
+    refs.push({path:circlePath(L.puck2CX,L.puck2CY,L.puckR), color:'#e90', dash:'2,2'});
+  } else if(layerName === 'middle') {
+    refs.push({path:roundedRectPath(L.phone1CX,L.phone1CY,P.p1W,P.p1H,P.p1R), color:'#09f', dash:'3,2', label:'Phone 1', lx:L.phone1CX, ly:L.phone1CY});
+    refs.push({path:roundedRectPath(L.phone2CX,L.phone2CY,P.p2W,P.p2H,P.p2R), color:'#09f', dash:'3,2', label:'Phone 2', lx:L.phone2CX, ly:L.phone2CY});
+  } else if(layerName === 'top') {
+    refs.push({path:circlePath(L.puck1CX,L.puck1CY,L.puckR), color:'#e90', dash:'2,2', label:'Puck', lx:L.puck1CX, ly:L.puck1CY});
+    refs.push({path:circlePath(L.puck2CX,L.puck2CY,L.puckR), color:'#e90', dash:'2,2', label:'Puck', lx:L.puck2CX, ly:L.puck2CY});
+    refs.push({path:roundedRectPath(L.cam1CX,L.cam1CY,P.p1CamW,P.p1CamH,P.p1CamR), color:'#c6c', dash:'2,1'});
+    refs.push({path:roundedRectPath(L.cam2CX,L.cam2CY,P.p2CamW,P.p2CamH,P.p2CamR), color:'#c6c', dash:'2,1'});
+  }
+  return refs;
+}
+
+function checkFit() {
+  const L = computeLayout(), warnings = [];
+  const hh = P.trapHeight/2;
+  // Check phone corners against trapezoid edges
+  [{cx:L.phone1CX, w:P.p1W, h:P.p1H, name:'Phone 1'}, {cx:L.phone2CX, w:P.p2W, h:P.p2H, name:'Phone 2'}].forEach(ph => {
+    const corners = [{x:ph.cx-ph.w/2, y:L.phone1CY-ph.h/2},{x:ph.cx+ph.w/2, y:L.phone1CY-ph.h/2},
+                     {x:ph.cx-ph.w/2, y:L.phone1CY+ph.h/2},{x:ph.cx+ph.w/2, y:L.phone1CY+ph.h/2}];
+    corners.forEach(c => {
+      if(Math.abs(c.y) > hh) { warnings.push(`${ph.name} extends beyond trapezoid height`); return; }
+      const t = (c.y + hh) / P.trapHeight;
+      const halfW = (P.trapTopWidth + (P.trapBottomWidth - P.trapTopWidth) * t) / 2;
+      if(Math.abs(c.x) > halfW) warnings.push(`${ph.name} extends beyond trapezoid at Y=${c.y.toFixed(0)}`);
+    });
+  });
+  return [...new Set(warnings)];
+}
+
+function render() {
+  const vp = document.getElementById('viewport');
+  let svgHTML;
+  switch(activeTab) {
+    case 'assembled': svgHTML = renderAssembled(); break;
+    case 'exploded': svgHTML = renderExploded(); break;
+    case 'layer1': svgHTML = renderLayer(baseLayerPaths(), '#DEB887', 'Base Plate (Layer 1)', getLayerRefs('base')); break;
+    case 'layer2': svgHTML = renderLayer(middleLayerPaths(), '#C49A6C', 'Middle Layer (Layer 2)', getLayerRefs('middle')); break;
+    case 'layer3': svgHTML = renderLayer(topLayerPaths(), '#A07850', 'Top Layer (Layer 3)', getLayerRefs('top')); break;
+  }
+  vp.innerHTML = svgHTML;
+
+  // Status bar with fit warnings
+  const warnings = checkFit();
+  const warnHTML = warnings.length ? `<span style="color:#dc2626;font-weight:600">&#9888; ${warnings[0]}</span>` : '';
+  document.getElementById('status-bar').innerHTML =
+    `<span>Base: ${P.trapTopWidth} &times; ${P.trapBottomWidth} &times; ${P.trapHeight} mm</span>`+
+    `<span>Phones: ${P.p1W}&times;${P.p1H} | ${P.p2W}&times;${P.p2H} mm</span>`+
+    `<span>Puck: &oslash;${P.puckDia} mm</span>`+
+    `<span>Material: 1/8&quot; (3.175mm) plywood</span>`+
+    warnHTML;
+}
+
+// ===================== Init =====================
+window.addEventListener('DOMContentLoaded', () => {
+  buildUI();
+  render();
+});
+</script>
+</body>
+</html>
